@@ -142,8 +142,8 @@ async def on_voice_state_update(member, before, after):
 
 @tasks.loop(minutes=1)  # Changed from 5 minutes to 1 minute for testing
 async def save_voice_data():
-    """Periodically save voice data for users still in voice channels"""
-    print("\n--- Periodic Voice Data Update ---")
+    """Periodically check if users are still in voice channels"""
+    print("\n--- Periodic Voice Check ---")
     print(f"Current tracking: {len(voice_join_times)} users")
     
     if not voice_join_times:
@@ -151,47 +151,27 @@ async def save_voice_data():
         return
         
     current_time = datetime.datetime.now()
-    data = load_data()
     
     for user_id, join_time in list(voice_join_times.items()):  # Use list() to avoid dictionary changed during iteration
-        # Calculate time spent so far
+        # Calculate time spent so far (just for logging)
         time_spent = (current_time - join_time).total_seconds()
-        print(f"User ID: {user_id}, Join time: {join_time}, Time spent: {time_spent:.2f} seconds")
+        print(f"User ID: {user_id}, Join time: {join_time}, Time spent so far: {time_spent:.2f} seconds")
         
-        # Get the member and channel
+        # Check if the user is still in a voice channel
         found = False
         for guild in bot.guilds:
             member = guild.get_member(int(user_id))
             if member and member.voice and member.voice.channel:
                 found = True
                 print(f"Found {member.name} in {member.voice.channel.name}")
-                
-                # Initialize user data if not exists
-                if user_id not in data:
-                    data[user_id] = {
-                        "username": member.name,
-                        "total_time": 0,
-                        "sessions": []
-                    }
-                    print(f"Created new data entry for {member.name}")
-                
-                # Update the total time (we'll update the session when they actually leave)
-                data[user_id]["total_time"] += time_spent
-                
-                # Reset join time to current time to avoid double counting
-                voice_join_times[user_id] = current_time
-                
-                print(f"Updated time for {member.name} in {member.voice.channel.name}: +{time_spent:.2f} seconds")
-                print(f"Total time for {member.name}: {data[user_id]['total_time']:.2f} seconds")
+                print(f"Still tracking {member.name} - will update total time when they leave")
+                break
         
         if not found:
             print(f"User ID {user_id} not found in any voice channel. Removing from tracking.")
             voice_join_times.pop(user_id, None)
     
-    # Save the updated data
-    save_data(data)
-    print("Data saved to file.")
-    print("--- End of Periodic Update ---\n")
+    print("--- End of Periodic Check ---\n")
 
 @bot.command(name='voicetime')
 async def voice_time(ctx, member: discord.Member = None):
@@ -203,38 +183,53 @@ async def voice_time(ctx, member: discord.Member = None):
     data = load_data()
     
     if user_id not in data:
-        await ctx.send(f"{member.display_name} has no recorded voice channel time.")
-        return
+        # If user is currently in a voice channel but has no previous data
+        if user_id in voice_join_times and member.voice and member.voice.channel:
+            current_time = datetime.datetime.now()
+            join_time = voice_join_times[user_id]
+            current_session_time = (current_time - join_time).total_seconds()
+            
+            hours, remainder = divmod(current_session_time, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            
+            await ctx.send(f"{member.display_name} is currently in a voice channel and has been there for {int(hours)} hours, {int(minutes)} minutes, and {int(seconds)} seconds.")
+            return
+        else:
+            await ctx.send(f"{member.display_name} has no recorded voice channel time.")
+            return
     
-    # Calculate current session time if user is in a voice channel
-    current_session_time = 0
+    # If user has previous data and is currently in a voice channel
     if user_id in voice_join_times and member.voice and member.voice.channel:
         current_time = datetime.datetime.now()
         join_time = voice_join_times[user_id]
         current_session_time = (current_time - join_time).total_seconds()
-    
-    total_time = data[user_id]["total_time"] + current_session_time
-    hours, remainder = divmod(total_time, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    
-    await ctx.send(f"{member.display_name} has spent {int(hours)} hours, {int(minutes)} minutes, and {int(seconds)} seconds in voice channels.")
+        
+        hours_current, remainder = divmod(current_session_time, 3600)
+        minutes_current, seconds_current = divmod(remainder, 60)
+        
+        hours_total, remainder = divmod(data[user_id]["total_time"], 3600)
+        minutes_total, seconds_total = divmod(remainder, 60)
+        
+        await ctx.send(f"{member.display_name} has spent {int(hours_total)} hours, {int(minutes_total)} minutes, and {int(seconds_total)} seconds in voice channels previously.\n"
+                      f"Current session: {int(hours_current)} hours, {int(minutes_current)} minutes, and {int(seconds_current)} seconds.")
+    else:
+        # User has previous data but is not currently in a voice channel
+        total_time = data[user_id]["total_time"]
+        hours, remainder = divmod(total_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        
+        await ctx.send(f"{member.display_name} has spent {int(hours)} hours, {int(minutes)} minutes, and {int(seconds)} seconds in voice channels.")
 
 @bot.command(name='leaderboard')
 async def leaderboard(ctx):
     """Command to display the voice time leaderboard"""
     data = load_data()
     
-    # Update current session times for users in voice channels
-    current_time = datetime.datetime.now()
-    for user_id, join_time in voice_join_times.items():
-        if user_id in data:
-            current_session_time = (current_time - join_time).total_seconds()
-            data[user_id]["current_session"] = current_session_time
-        
-    # Sort users by total time
+    # Don't include current session times in the leaderboard
+    # Sort users by total time only
     sorted_users = sorted(
         data.items(), 
-        key=lambda x: x[1]["total_time"] + x[1].get("current_session", 0), 
+        key=lambda x: x[1]["total_time"], 
         reverse=True
     )
     
@@ -246,12 +241,27 @@ async def leaderboard(ctx):
     embed = discord.Embed(title="Voice Channel Time Leaderboard", color=discord.Color.blue())
     
     for i, (user_id, user_data) in enumerate(sorted_users[:10], 1):
-        total_time = user_data["total_time"] + user_data.get("current_session", 0)
+        total_time = user_data["total_time"]
         hours, remainder = divmod(total_time, 3600)
         minutes, seconds = divmod(remainder, 60)
         
+        # Check if user is currently in a voice channel
+        in_voice = False
+        current_session = ""
+        if user_id in voice_join_times:
+            for guild in bot.guilds:
+                member = guild.get_member(int(user_id))
+                if member and member.voice and member.voice.channel:
+                    in_voice = True
+                    break
+        
+        if in_voice:
+            status = " (Currently in voice)"
+        else:
+            status = ""
+            
         embed.add_field(
-            name=f"{i}. {user_data['username']}",
+            name=f"{i}. {user_data['username']}{status}",
             value=f"{int(hours)} hours, {int(minutes)} minutes",
             inline=False
         )
