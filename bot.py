@@ -5,6 +5,14 @@ import datetime
 import os
 import logging
 from config import TOKEN
+import threading
+import streamlit.web.bootstrap
+import streamlit.web.server
+import sys
+from streamlit.runtime.scriptrunner import get_script_run_ctx
+from streamlit.runtime.runtime import Runtime
+import threading
+import subprocess
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -276,5 +284,16 @@ async def leaderboard(ctx):
     
     await ctx.send(embed=embed)
 
+def run_streamlit():
+    subprocess.Popen(
+        [sys.executable, "-m", "streamlit", "run", "streamlit_app.py", "--server.headless", "true", "--server.port", "8501"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.STDOUT
+    )
+if __name__ == "__main__":
+    # Start Streamlit in the background
+    threading.Thread(target=run_streamlit, daemon=True).start()
+
 # Run the bot
 bot.run(TOKEN)
+

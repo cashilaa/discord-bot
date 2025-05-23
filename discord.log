@@ -1,5 +1,4 @@
-2025-05-23 09:03:20,710:WARNING:discord.client: PyNaCl is not installed, voice will NOT be supported
-2025-05-23 09:03:20,710:DEBUG:discord.client: on_ready has successfully been registered as an event
-2025-05-23 09:03:20,710:DEBUG:discord.client: on_voice_state_update has successfully been registered as an event
-2025-05-23 09:03:20,711:INFO:discord.client: logging in using static token
-2025-05-23 09:03:22,992:INFO:discord.gateway: Shard ID None has connected to Gateway (Session ID: 2ccafbad5056356acf8c316699fac98b).
+2025-05-23 12:20:06,339:DEBUG:discord.client: on_ready has successfully been registered as an event
+2025-05-23 12:20:06,340:DEBUG:discord.client: on_voice_state_update has successfully been registered as an event
+2025-05-23 12:20:06,345:INFO:discord.client: logging in using static token
+2025-05-23 12:20:18,558:INFO:discord.gateway: Shard ID None has connected to Gateway (Session ID: 225eb61e288e873c6fbf705074454af9).
