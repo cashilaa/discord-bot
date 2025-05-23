@@ -26,10 +26,13 @@ ENV/
 
 # IDE
 .idea/
-.vscode/
 *.swp
 *.swo
 
 # Bot specific
 config.py
 voice_data.json
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
+branch_structure.json

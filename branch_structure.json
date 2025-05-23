@@ -1,0 +1,18 @@
+{
+  "default_branch": "master",
+  "branches": [
+    "interface",
+    "master",
+    "stream"
+  ],
+  "parent": {
+    "interface": "master",
+    "master": null,
+    "stream": "master"
+  },
+  "order": [
+    "master",
+    "interface",
+    "stream"
+  ]
+}

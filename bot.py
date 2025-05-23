@@ -107,7 +107,11 @@ async def on_voice_state_update(member, before, after):
             time_spent = (leave_time - join_time).total_seconds()
             
             print(f"  Found in tracking dictionary. Join time: {join_time}")
-            print(f"  Time spent: {time_spent:.2f} seconds")
+            
+            # Convert seconds to hours and minutes for logging
+            hours, remainder = divmod(time_spent, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            print(f"  Time spent: {int(hours)} hours and {int(minutes)} minutes")
             
             # Load existing data
             data = load_data()
@@ -135,7 +139,10 @@ async def on_voice_state_update(member, before, after):
             # Remove user from tracking dictionary
             del voice_join_times[user_id]
             
-            print(f"  Updated data for {member.name}. Total time: {data[user_id]['total_time']:.2f} seconds")
+            # Convert total time to hours and minutes for logging
+            total_hours, remainder = divmod(data[user_id]['total_time'], 3600)
+            total_minutes, total_seconds = divmod(remainder, 60)
+            print(f"  Updated data for {member.name}. Total time: {int(total_hours)} hours and {int(total_minutes)} minutes")
             print(f"  Removed from tracking dictionary. Current tracking: {len(voice_join_times)} users")
         else:
             print(f"  Not found in tracking dictionary. Cannot calculate time spent.")
@@ -155,7 +162,9 @@ async def save_voice_data():
     for user_id, join_time in list(voice_join_times.items()):  # Use list() to avoid dictionary changed during iteration
         # Calculate time spent so far (just for logging)
         time_spent = (current_time - join_time).total_seconds()
-        print(f"User ID: {user_id}, Join time: {join_time}, Time spent so far: {time_spent:.2f} seconds")
+        hours, remainder = divmod(time_spent, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        print(f"User ID: {user_id}, Join time: {join_time}, Time spent so far: {int(hours)} hours and {int(minutes)} minutes")
         
         # Check if the user is still in a voice channel
         found = False
@@ -192,7 +201,7 @@ async def voice_time(ctx, member: discord.Member = None):
             hours, remainder = divmod(current_session_time, 3600)
             minutes, seconds = divmod(remainder, 60)
             
-            await ctx.send(f"{member.display_name} is currently in a voice channel and has been there for {int(hours)} hours, {int(minutes)} minutes, and {int(seconds)} seconds.")
+            await ctx.send(f"{member.display_name} is currently in a voice channel and has been there for {int(hours)} hours and {int(minutes)} minutes.")
             return
         else:
             await ctx.send(f"{member.display_name} has no recorded voice channel time.")
@@ -205,20 +214,20 @@ async def voice_time(ctx, member: discord.Member = None):
         current_session_time = (current_time - join_time).total_seconds()
         
         hours_current, remainder = divmod(current_session_time, 3600)
-        minutes_current, seconds_current = divmod(remainder, 60)
+        minutes_current, seconds = divmod(remainder, 60)
         
         hours_total, remainder = divmod(data[user_id]["total_time"], 3600)
-        minutes_total, seconds_total = divmod(remainder, 60)
+        minutes_total, seconds = divmod(remainder, 60)
         
-        await ctx.send(f"{member.display_name} has spent {int(hours_total)} hours, {int(minutes_total)} minutes, and {int(seconds_total)} seconds in voice channels previously.\n"
-                      f"Current session: {int(hours_current)} hours, {int(minutes_current)} minutes, and {int(seconds_current)} seconds.")
+        await ctx.send(f"{member.display_name} has spent {int(hours_total)} hours and {int(minutes_total)} minutes in voice channels previously.\n"
+                      f"Current session: {int(hours_current)} hours and {int(minutes_current)} minutes.")
     else:
         # User has previous data but is not currently in a voice channel
         total_time = data[user_id]["total_time"]
         hours, remainder = divmod(total_time, 3600)
         minutes, seconds = divmod(remainder, 60)
         
-        await ctx.send(f"{member.display_name} has spent {int(hours)} hours, {int(minutes)} minutes, and {int(seconds)} seconds in voice channels.")
+        await ctx.send(f"{member.display_name} has spent {int(hours)} hours and {int(minutes)} minutes in voice channels.")
 
 @bot.command(name='leaderboard')
 async def leaderboard(ctx):
@@ -247,7 +256,6 @@ async def leaderboard(ctx):
         
         # Check if user is currently in a voice channel
         in_voice = False
-        current_session = ""
         if user_id in voice_join_times:
             for guild in bot.guilds:
                 member = guild.get_member(int(user_id))
@@ -262,7 +270,7 @@ async def leaderboard(ctx):
             
         embed.add_field(
             name=f"{i}. {user_data['username']}{status}",
-            value=f"{int(hours)} hours, {int(minutes)} minutes",
+            value=f"{int(hours)} hours and {int(minutes)} minutes",
             inline=False
         )
     
