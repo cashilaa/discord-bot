@@ -6,7 +6,6 @@ import datetime
 import os
 import subprocess
 import sys
-import threading
 import time
 from datetime import datetime
 
@@ -33,16 +32,20 @@ def run_bot_process():
         # Start the bot process
         if sys.platform == 'win32':
             # Hide console window on Windows
+            log_file = open("bot_output.log", "w")
             bot_process = subprocess.Popen(
                 ["python", "bot.py"],
+                stdout=log_file,
+                stderr=log_file,
                 creationflags=subprocess.CREATE_NEW_CONSOLE
             )
         else:
             # For non-Windows platforms
+            log_file = open("bot_output.log", "w")
             bot_process = subprocess.Popen(
                 ["python", "bot.py"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                stdout=log_file,
+                stderr=log_file
             )
         
         st.sidebar.success("Bot started successfully!")
@@ -70,10 +73,8 @@ def check_bot_status():
     else:
         return "Stopped"
 
-# Auto-refresh functionality
-def auto_refresh():
-    time.sleep(10)  # Refresh every 10 seconds
-    st.rerun()
+# Auto-refresh functionality using Streamlit's built-in functionality
+# We'll use a simpler approach that doesn't require threading
 
 # Path to the JSON file for storing voice time data
 DATA_FILE = 'voice_data.json'
@@ -109,15 +110,27 @@ with col2:
         stop_bot_process()
         st.rerun()
 
-# Auto-refresh toggle
-auto_refresh_enabled = st.sidebar.checkbox("Enable Auto Refresh", value=False)
-if auto_refresh_enabled:
-    refresh_thread = threading.Thread(target=auto_refresh)
-    refresh_thread.daemon = True
-    refresh_thread.start()
+# Auto-refresh section
+st.sidebar.subheader("Data Refresh")
 
 # Manual refresh button
-if st.sidebar.button("Refresh Data"):
+if st.sidebar.button("Refresh Data Now"):
+    st.rerun()
+
+# Auto-refresh toggle
+auto_refresh = st.sidebar.checkbox("Enable Auto Refresh", value=False)
+if auto_refresh:
+    refresh_rate = st.sidebar.slider("Refresh rate (seconds)", 
+                                    min_value=5, 
+                                    max_value=60, 
+                                    value=10)
+    st.sidebar.info(f"Auto-refreshing every {refresh_rate} seconds")
+    
+    # This creates a placeholder that updates based on the current time
+    # When it changes, Streamlit will rerun the app
+    refresh_placeholder = st.sidebar.empty()
+    refresh_placeholder.text(f"Last refresh: {datetime.now().strftime('%H:%M:%S')}")
+    time.sleep(refresh_rate)
     st.rerun()
 
 st.sidebar.markdown("---")
